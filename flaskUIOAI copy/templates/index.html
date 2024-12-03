@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Event Recommender</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            background: linear-gradient(135deg, #4158D0, #C850C0);
+            margin: 0;
+            padding: 20px;
+        }
+
+        #recommendationBox {
+            font-size: 24px;
+            color: white;
+            text-align: center;
+            margin-bottom: 20px;
+            padding: 30px;
+            border: 3px solid transparent;
+            border-radius: 12px;
+            box-shadow: 0 0 15px rgba(255, 255, 255, 0.2);
+            transition: all 0.3s ease;
+            max-width: 600px;
+            width: 100%;
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        .input-container {
+            width: 100%;
+            max-width: 600px;
+            margin-bottom: 20px;
+        }
+
+        input[type="text"] {
+            width: 100%;
+            padding: 15px;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            background-color: rgba(255, 255, 255, 0.9);
+            color: #333;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            transition: all 0.3s ease;
+        }
+
+        input[type="text"]:focus {
+            outline: none;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+            transform: translateY(-2px);
+        }
+
+        button {
+            padding: 12px 30px;
+            border: none;
+            border-radius: 8px;
+            background-color: white;
+            color: #4158D0;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin: 10px;
+        }
+
+        button:hover {
+            background-color: #4158D0;
+            color: white;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+        }
+
+        #loading {
+            display: none;
+            font-size: 18px;
+            color: white;
+            margin-top: 20px;
+        }
+
+        @keyframes dots {
+            0% { content: ''; }
+            33% { content: '.'; }
+            66% { content: '..'; }
+            100% { content: '...'; }
+        }
+
+        .thinking::after {
+            content: '';
+            animation: dots 1s steps(1, end) infinite;
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.02); }
+            100% { transform: scale(1); }
+        }
+
+        .pulsing {
+            animation: pulse 2s infinite;
+            background: rgba(255, 255, 255, 0.15);
+        }
+
+        .audio-controls {
+            margin-top: 20px;
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .audio-controls button {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .audio-icon {
+            width: 20px;
+            height: 20px;
+        }
+
+        #stopButton {
+            display: none;
+            background-color: #ff4757;
+            color: white;
+        }
+
+        #stopButton:hover {
+            background-color: #ff6b81;
+        }
+    </style>
+</head>
+<body>
+    <div id="recommendationBox">Tell me what kind of events you're interested in</div>
+
+    <div class="input-container">
+        <input type="text" id="preferencesInput" placeholder="Enter your event preferences...">
+    </div>
+
+    <button id="recommendButton" onclick="getRecommendations()">Get Recommendations</button>
+
+    <div id="loading" class="thinking">Finding perfect events for you</div>
+
+    <button id="stopButton" onclick="stopAudio()">
+        <svg class="audio-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="4" y="4" width="16" height="16"/>
+        </svg>
+        Stop Audio
+    </button>
+
+    <audio id="audioPlayer"></audio>
+
+    <script>
+        const recommendationBox = document.getElementById('recommendationBox');
+        const preferencesInput = document.getElementById('preferencesInput');
+        const loadingText = document.getElementById('loading');
+        const stopButton = document.getElementById('stopButton');
+        const audioPlayer = document.getElementById('audioPlayer');
+        let isPlaying = false;
+
+        // Add event listener for Enter key
+        preferencesInput.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                getRecommendations();
+            }
+        });
+
+        function getRecommendations() {
+            const preferences = preferencesInput.value;
+
+            if (!preferences) {
+                alert('Please enter your preferences first!');
+                return;
+            }
+
+            // Show loading animation
+            loadingText.style.display = 'block';
+            recommendationBox.innerText = '';
+            stopButton.style.display = 'none';
+
+            const formData = new FormData();
+            formData.append('preferences', preferences);
+
+            fetch('/get_recommendations', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                loadingText.style.display = 'none';
+
+                if (data.error) {
+                    alert(data.error);
+                } else {
+                    recommendationBox.innerText = data.recommendations;
+                    audioPlayer.src = `/audio/${data.audio_file}`;
+                    // Autoplay the audio
+                    playAudio();
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                loadingText.style.display = 'none';
+                alert('An error occurred while getting recommendations.');
+            });
+        }
+
+        function playAudio() {
+            audioPlayer.play();
+            isPlaying = true;
+            recommendationBox.classList.add('pulsing');
+            stopButton.style.display = 'flex';
+        }
+
+        function stopAudio() {
+            audioPlayer.pause();
+            audioPlayer.currentTime = 0;
+            isPlaying = false;
+            recommendationBox.classList.remove('pulsing');
+            stopButton.style.display = 'none';
+        }
+
+        audioPlayer.addEventListener('ended', () => {
+            isPlaying = false;
+            recommendationBox.classList.remove('pulsing');
+            stopButton.style.display = 'none';
+        });
+
+        // Add keyboard shortcuts
+        document.addEventListener('keydown', function(e) {
+            if (e.code === 'Space' && isPlaying) {
+                e.preventDefault(); // Prevent space from scrolling
+                stopAudio();
+            }
+        });
+    </script>
+</body>
+</html>
