@@ -174,7 +174,6 @@ class EventRecommender:
         return recommended_events
 
     def generate_recommendation_response(self, user_preferences: str, n_results: int = 3) -> str:
-        """Generate a natural language response with unique recommendations."""
         recommendations = self.get_recommendations(user_preferences, n_results)
         
         if not recommendations:
@@ -191,7 +190,8 @@ class EventRecommender:
                 f"{i}. {event.get('Event Summary', 'Untitled Event')}\n"
                 f"   Date: {event.get('Event Date', 'TBA')}\n"
                 f"   Type: {event.get('Event Type', 'Not specified')}\n"
-                f"   Audience: {event.get('Target Audience', 'All welcome')}\n\n"
+                f"   Audience: {event.get('Target Audience', 'All welcome')}\n"
+                f"   URL: {event.get('URL', 'Not available')}\n\n"
             )
 
         # Generate response using GPT
