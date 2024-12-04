@@ -6,6 +6,9 @@ from dotenv import load_dotenv
 from gtts import gTTS
 import uuid
 from pathlib import Path
+import qrcode
+from io import BytesIO
+from urllib.parse import urlparse
 
 # Create a directory for temporary audio files
 AUDIO_DIR = Path("temp_audio")
@@ -41,10 +44,6 @@ except json.JSONDecodeError:
     print("Error: Invalid JSON in mdc_events.json!")
     events_data = []
 
-# @app.route('/')
-# def home():
-#     print("Received request for home page")
-#     return render_template('index.html')
 @app.route('/')
 def home():
     return render_template('index.html')
@@ -52,30 +51,70 @@ def home():
 @app.route('/get_recommendations', methods=['POST'])
 def get_recommendations():
     preferences = request.form.get('preferences', '')
-    print(f"Received recommendation request with preferences: {preferences}")
-    
     if not preferences:
         return jsonify({'error': 'No preferences provided'}), 400
     
     try:
-        response = recommender.generate_recommendation_response(preferences)
-        print("Generated recommendations successfully")
+        recommendations = recommender.get_recommendations(preferences)
+        events = [
+            {
+                'title': rec['event'].get('Event Title', 'Untitled Event'),  # Use a "Title" field explicitly
+                'date': rec['event'].get('Event Date', 'Date not specified'),
+                'url': rec['event'].get('URL')
+            }
+            for rec in recommendations if 'URL' in rec['event']
+        ]
         
-        # Generate unique filename for this audio
-        audio_filename = f"speech_{uuid.uuid4()}.mp3"
-        audio_path = AUDIO_DIR / audio_filename
-        
-        # Create speech from text
-        tts = gTTS(text=response, lang='en')
-        tts.save(str(audio_path))
+        response_text = recommender.generate_recommendation_response(preferences)
         
         return jsonify({
-            'recommendations': response,
-            'audio_file': audio_filename
+            'recommendations': response_text,
+            'events': events
         })
     except Exception as e:
-        print(f"Error generating recommendations: {str(e)}")
         return jsonify({'error': str(e)}), 500
+
+@app.route('/get_qr_code', methods=['POST'])
+def get_qr_code():
+    url = request.form.get('url')
+    event_title = request.form.get('title')
+    event_date = request.form.get('date')
+    if not url:
+        return jsonify({'error': 'No URL provided'}), 400
+
+    # Validate URL
+    def is_valid_url(url):
+        parsed = urlparse(url)
+        return bool(parsed.netloc) and bool(parsed.scheme)
+    
+    if not is_valid_url(url):
+        return jsonify({'error': 'Invalid URL provided'}), 400
+
+    try:
+        # Combine event details into QR code data
+        qr_data = f"{event_title}\n{event_date}\n{url}"
+        
+        # Generate QR code
+        qr = qrcode.QRCode(
+            version=1,
+            error_correction=qrcode.constants.ERROR_CORRECT_L,
+            box_size=10,
+            border=4,
+        )
+        qr.add_data(qr_data)
+        qr.make(fit=True)
+        img = qr.make_image(fill_color="black", back_color="white")
+
+        # Save the QR code to a BytesIO object
+        buffer = BytesIO()
+        img.save(buffer, format="PNG")
+        buffer.seek(0)
+
+        # Return the image as a response
+        return send_file(buffer, mimetype='image/png')
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
 
 @app.route('/audio/<filename>')
 def serve_audio(filename):
