@@ -17,25 +17,50 @@
             padding: 20px;
         }
 
-        #recommendationBox {
-            font-size: 24px;
-            color: white;
-            text-align: center;
-            margin-bottom: 20px;
-            padding: 30px;
-            border: 3px solid transparent;
+        #qrCodeContainer {
+            margin-top: 20px;
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            align-items: center;
+            width: 100%;
+            max-width: 800px;
+            gap: 20px;
+            padding: 20px;
+            background: rgba(255, 255, 255, 0.1);
             border-radius: 12px;
             box-shadow: 0 0 15px rgba(255, 255, 255, 0.2);
-            transition: all 0.3s ease;
-            max-width: 600px;
-            width: 100%;
-            background: rgba(255, 255, 255, 0.1);
+        }
+
+        .qr-code-item {
+            text-align: center;
+        }
+
+        .qr-code-title {
+            font-size: 18px;
+            color: white;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+
+        .qr-code-date {
+            font-size: 16px;
+            color: lightgray;
+            margin-bottom: 10px;
+        }
+
+        .qr-code-img {
+            max-width: 200px;
+            border: 3px solid white;
+            border-radius: 8px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
         }
 
         .input-container {
+            margin-top: 20px;
             width: 100%;
             max-width: 600px;
-            margin-bottom: 20px;
+            text-align: center;
         }
 
         input[type="text"] {
@@ -66,7 +91,7 @@
             font-weight: bold;
             cursor: pointer;
             transition: all 0.3s ease;
-            margin: 10px;
+            margin-top: 20px;
         }
 
         button:hover {
@@ -82,89 +107,27 @@
             color: white;
             margin-top: 20px;
         }
-
-        @keyframes dots {
-            0% { content: ''; }
-            33% { content: '.'; }
-            66% { content: '..'; }
-            100% { content: '...'; }
-        }
-
-        .thinking::after {
-            content: '';
-            animation: dots 1s steps(1, end) infinite;
-        }
-
-        @keyframes pulse {
-            0% { transform: scale(1); }
-            50% { transform: scale(1.02); }
-            100% { transform: scale(1); }
-        }
-
-        .pulsing {
-            animation: pulse 2s infinite;
-            background: rgba(255, 255, 255, 0.15);
-        }
-
-        .audio-controls {
-            margin-top: 20px;
-            display: flex;
-            gap: 10px;
-            align-items: center;
-        }
-
-        .audio-controls button {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-
-        .audio-icon {
-            width: 20px;
-            height: 20px;
-        }
-
-        #stopButton {
-            display: none;
-            background-color: #ff4757;
-            color: white;
-        }
-
-        #stopButton:hover {
-            background-color: #ff6b81;
-        }
     </style>
 </head>
 <body>
-    <div id="recommendationBox">Tell me what kind of events you're interested in</div>
-
     <div class="input-container">
         <input type="text" id="preferencesInput" placeholder="Enter your event preferences...">
     </div>
 
     <button id="recommendButton" onclick="getRecommendations()">Get Recommendations</button>
 
-    <div id="loading" class="thinking">Finding perfect events for you</div>
+    <div id="loading">Finding perfect events for you...</div>
 
-    <button id="stopButton" onclick="stopAudio()">
-        <svg class="audio-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <rect x="4" y="4" width="16" height="16"/>
-        </svg>
-        Stop Audio
-    </button>
-
-    <audio id="audioPlayer"></audio>
+    <div id="qrCodeContainer">
+        <h3>Your QR Codes:</h3>
+    </div>
 
     <script>
-        const recommendationBox = document.getElementById('recommendationBox');
         const preferencesInput = document.getElementById('preferencesInput');
         const loadingText = document.getElementById('loading');
-        const stopButton = document.getElementById('stopButton');
-        const audioPlayer = document.getElementById('audioPlayer');
-        let isPlaying = false;
+        const qrCodeContainer = document.getElementById('qrCodeContainer');
 
-        // Add event listener for Enter key
-        preferencesInput.addEventListener('keypress', function(e) {
+        preferencesInput.addEventListener('keypress', function (e) {
             if (e.key === 'Enter') {
                 getRecommendations();
             }
@@ -178,10 +141,8 @@
                 return;
             }
 
-            // Show loading animation
             loadingText.style.display = 'block';
-            recommendationBox.innerText = '';
-            stopButton.style.display = 'none';
+            qrCodeContainer.innerHTML = ''; // Clear previous QR codes
 
             const formData = new FormData();
             formData.append('preferences', preferences);
@@ -197,10 +158,18 @@
                 if (data.error) {
                     alert(data.error);
                 } else {
-                    recommendationBox.innerText = data.recommendations;
-                    audioPlayer.src = `/audio/${data.audio_file}`;
-                    // Autoplay the audio
-                    playAudio();
+                    // Play audio response
+                    const audio = new Audio(data.audio_url);
+                    audio.play();
+
+                    const eventDetails = data.events;
+                    if (eventDetails && eventDetails.length > 0) {
+                        eventDetails.forEach(event => {
+                            generateQRCode(event.title, event.date, event.url);
+                        });
+                    } else {
+                        alert("No valid event details found in recommendations.");
+                    }
                 }
             })
             .catch(error => {
@@ -210,34 +179,50 @@
             });
         }
 
-        function playAudio() {
-            audioPlayer.play();
-            isPlaying = true;
-            recommendationBox.classList.add('pulsing');
-            stopButton.style.display = 'flex';
+        function generateQRCode(eventTitle, eventDate, url) {
+            const formData = new URLSearchParams();
+            formData.append('url', url);
+            formData.append('title', eventTitle);
+            formData.append('date', eventDate);
+
+            fetch('/get_qr_code', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: formData
+            })
+            .then(response => {
+                if (!response.ok) throw new Error("Failed to generate QR Code");
+                return response.blob();
+            })
+            .then(blob => {
+                const qrItem = document.createElement('div');
+                qrItem.className = 'qr-code-item';
+
+                const titleElement = document.createElement('div');
+                titleElement.className = 'qr-code-title';
+                titleElement.innerText = eventTitle;
+
+                const dateElement = document.createElement('div');
+                dateElement.className = 'qr-code-date';
+                dateElement.innerText = eventDate;
+
+                const img = document.createElement('img');
+                img.className = 'qr-code-img';
+                img.src = URL.createObjectURL(blob);
+                img.alt = 'QR Code';
+
+                qrItem.appendChild(titleElement);
+                qrItem.appendChild(dateElement);
+                qrItem.appendChild(img);
+
+                qrCodeContainer.appendChild(qrItem);
+                qrCodeContainer.style.display = 'block';
+            })
+            .catch(error => {
+                console.error('Error generating QR Code:', error);
+                alert('Failed to generate QR Code.');
+            });
         }
-
-        function stopAudio() {
-            audioPlayer.pause();
-            audioPlayer.currentTime = 0;
-            isPlaying = false;
-            recommendationBox.classList.remove('pulsing');
-            stopButton.style.display = 'none';
-        }
-
-        audioPlayer.addEventListener('ended', () => {
-            isPlaying = false;
-            recommendationBox.classList.remove('pulsing');
-            stopButton.style.display = 'none';
-        });
-
-        // Add keyboard shortcuts
-        document.addEventListener('keydown', function(e) {
-            if (e.code === 'Space' && isPlaying) {
-                e.preventDefault(); // Prevent space from scrolling
-                stopAudio();
-            }
-        });
     </script>
 </body>
 </html>

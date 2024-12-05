@@ -2,3 +2,5 @@ flask
 chromadb
 openai
 gtts
+Pillow
+qrcode

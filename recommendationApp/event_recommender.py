@@ -3,9 +3,8 @@ import chromadb
 from chromadb.utils import embedding_functions
 import openai
 from typing import List, Dict
-import os
-from datetime import datetime
 import re
+
 
 class EventRecommender:
     def __init__(self, openai_api_key: str):
@@ -142,39 +141,30 @@ class EventRecommender:
 
     def get_recommendations(self, user_preferences: str, n_results: int = 5) -> List[Dict]:
         """Get event recommendations based on expanded user preferences."""
-        # Expand user preferences
         expanded_preferences = self.expand_user_interests(user_preferences)
-        
-        # Query with expanded preferences
         results = self.collection.query(
             query_texts=[expanded_preferences],
-            n_results=n_results * 2  # Get more results initially for filtering
+            n_results=n_results
         )
 
-        # Process and deduplicate recommendations
-        seen_events = set()
         recommended_events = []
-        
-        for i in range(len(results['ids'][0])):
-            event_metadata = results['metadatas'][0][i]
-            event_key = f"{event_metadata.get('Event Summary', '')}-{event_metadata.get('Event Date', '')}"
-            
-            if event_key not in seen_events:
-                seen_events.add(event_key)
-                similarity = results['distances'][0][i] if 'distances' in results else None
-                
+        seen_events = set()
+
+        for i, metadata in enumerate(results['metadatas'][0]):
+            title = metadata.get('Event Title', metadata.get('Event Summary', 'Untitled Event')).split('\n')[0]
+            date = metadata.get('Event Date', 'Date not specified')
+            url = metadata.get('URL')
+
+            # Skip events already added
+            if f"{title}-{date}" not in seen_events:
+                seen_events.add(f"{title}-{date}")
                 recommended_events.append({
-                    'event': event_metadata,
-                    'similarity_score': similarity
+                    'event': {'Event Title': title, 'Event Date': date, 'URL': url}
                 })
                 
-                if len(recommended_events) >= n_results:
-                    break
-
         return recommended_events
 
     def generate_recommendation_response(self, user_preferences: str, n_results: int = 3) -> str:
-        """Generate a natural language response with unique recommendations."""
         recommendations = self.get_recommendations(user_preferences, n_results)
         
         if not recommendations:
@@ -191,7 +181,8 @@ class EventRecommender:
                 f"{i}. {event.get('Event Summary', 'Untitled Event')}\n"
                 f"   Date: {event.get('Event Date', 'TBA')}\n"
                 f"   Type: {event.get('Event Type', 'Not specified')}\n"
-                f"   Audience: {event.get('Target Audience', 'All welcome')}\n\n"
+                f"   Audience: {event.get('Target Audience', 'All welcome')}\n"
+                f"   URL: {event.get('URL', 'Not available')}\n\n"
             )
 
         # Generate response using GPT
