@@ -63,24 +63,6 @@
             text-align: center;
         }
 
-        input[type="text"] {
-            width: 100%;
-            padding: 15px;
-            border: none;
-            border-radius: 8px;
-            font-size: 16px;
-            background-color: rgba(255, 255, 255, 0.9);
-            color: #333;
-            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
-            transition: all 0.3s ease;
-        }
-
-        input[type="text"]:focus {
-            outline: none;
-            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
-            transform: translateY(-2px);
-        }
-
         button {
             padding: 12px 30px;
             border: none;
@@ -101,6 +83,11 @@
             box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
         }
 
+        button:disabled {
+            background-color: gray;
+            cursor: not-allowed;
+        }
+
         #loading {
             display: none;
             font-size: 18px;
@@ -111,10 +98,8 @@
 </head>
 <body>
     <div class="input-container">
-        <input type="text" id="preferencesInput" placeholder="Enter your event preferences...">
+        <button id="recordButton">🎤 Record Preferences</button>
     </div>
-
-    <button id="recommendButton" onclick="getRecommendations()">Get Recommendations</button>
 
     <div id="loading">Finding perfect events for you...</div>
 
@@ -123,21 +108,76 @@
     </div>
 
     <script>
-        const preferencesInput = document.getElementById('preferencesInput');
+        const recordButton = document.getElementById('recordButton');
         const loadingText = document.getElementById('loading');
         const qrCodeContainer = document.getElementById('qrCodeContainer');
 
-        preferencesInput.addEventListener('keypress', function (e) {
-            if (e.key === 'Enter') {
-                getRecommendations();
+        let isRecording = false;
+
+        recordButton.addEventListener('click', async () => {
+            if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+                alert('Your browser does not support audio recording.');
+                return;
+            }
+
+            if (!isRecording) {
+                // Start recording
+                isRecording = true;
+                recordButton.textContent = "🎙️ Recording...";
+                recordButton.disabled = true;
+
+                try {
+                    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                    const mediaRecorder = new MediaRecorder(stream);
+                    const chunks = [];
+
+                    mediaRecorder.ondataavailable = (event) => {
+                        chunks.push(event.data);
+                    };
+
+                    mediaRecorder.onstop = async () => {
+                        recordButton.textContent = "🎤 Record Preferences";
+                        isRecording = false;
+                        recordButton.disabled = false;
+
+                        const blob = new Blob(chunks, { type: 'audio/wav' });
+                        const formData = new FormData();
+                        formData.append('audio', blob);
+
+                        // Upload audio to Flask backend for transcription
+                        try {
+                            const response = await fetch('/upload_audio', {
+                                method: 'POST',
+                                body: formData,
+                            });
+
+                            const data = await response.json();
+                            if (data.error) {
+                                alert(data.error);
+                            } else {
+                                const transcription = data.transcription;
+                                getRecommendations(transcription); // Automatically fetch recommendations
+                            }
+                        } catch (error) {
+                            console.error('Error uploading audio:', error);
+                            alert('An error occurred during transcription.');
+                        }
+                    };
+
+                    mediaRecorder.start();
+                    setTimeout(() => mediaRecorder.stop(), 5000); // Stop recording after 5 seconds
+                } catch (error) {
+                    console.error('Error starting recording:', error);
+                    recordButton.textContent = "🎤 Record Preferences";
+                    isRecording = false;
+                    recordButton.disabled = false;
+                }
             }
         });
 
-        function getRecommendations() {
-            const preferences = preferencesInput.value;
-
+        function getRecommendations(preferences) {
             if (!preferences) {
-                alert('Please enter your preferences first!');
+                alert('No preferences provided!');
                 return;
             }
 

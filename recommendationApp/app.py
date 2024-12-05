@@ -9,6 +9,7 @@ from pathlib import Path
 import qrcode
 from io import BytesIO
 from urllib.parse import urlparse
+import whisper
 
 # Create a directory for temporary audio files
 AUDIO_DIR = Path("temp_audio")
@@ -44,6 +45,10 @@ except json.JSONDecodeError:
     print("Error: Invalid JSON in mdc_events.json!")
     events_data = []
 
+# Load Whisper model
+print("Loading Whisper model...")
+whisper_model = whisper.load_model("base")
+
 @app.route('/')
 def home():
     return render_template('index.html')
@@ -67,7 +72,6 @@ def get_recommendations():
         ]
         
         # Generate dynamic text response
-        #response_text = recommender.generate_recommendation_response(preferences)
         response_text = "Here are some events that you may find interesting"
         # Create an audio file for the response
         audio_filename = f"{uuid.uuid4()}.mp3"
@@ -84,6 +88,26 @@ def get_recommendations():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
+@app.route('/upload_audio', methods=['POST'])
+def upload_audio():
+    audio_file = request.files.get('audio')
+    if not audio_file:
+        return jsonify({'error': 'No audio file uploaded.'}), 400
+
+    try:
+        # Save audio temporarily
+        temp_path = AUDIO_DIR / f"{uuid.uuid4()}.wav"
+        audio_file.save(temp_path)
+
+        # Transcribe audio using Whisper
+        transcription = whisper_model.transcribe(str(temp_path))["text"]
+
+        # Clean up temporary file
+        temp_path.unlink()
+
+        return jsonify({'transcription': transcription})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 
 @app.route('/get_qr_code', methods=['POST'])
 def get_qr_code():
@@ -125,7 +149,6 @@ def get_qr_code():
         return send_file(buffer, mimetype='image/png')
     except Exception as e:
         return jsonify({'error': str(e)}), 500
-
 
 @app.route('/audio/<filename>')
 def serve_audio(filename):
