@@ -6,15 +6,17 @@
     <title>Event Recommender</title>
     <style>
         body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            font-family: 'Roboto', Arial, sans-serif;
             display: flex;
             flex-direction: column;
             align-items: center;
             justify-content: center;
             min-height: 100vh;
-            background: linear-gradient(135deg, #4158D0, #C850C0);
+            background: radial-gradient(circle, #000428, #004e92);
+            color: white;
             margin: 0;
             padding: 20px;
+            text-align: center;
         }
 
         #qrCodeContainer {
@@ -64,41 +66,94 @@
         }
 
         button {
-            padding: 12px 30px;
+            padding: 20px;
+            width: 180px;
+            height: 180px;
             border: none;
-            border-radius: 8px;
-            background-color: white;
-            color: #4158D0;
-            font-size: 16px;
+            border-radius: 50%;
+            background: radial-gradient(circle at center, #ff4b1f, #1fddff);
+            color: white;
+            font-size: 18px;
             font-weight: bold;
+            text-transform: uppercase;
+            letter-spacing: 2px;
             cursor: pointer;
-            transition: all 0.3s ease;
-            margin-top: 20px;
+            transition: all 0.4s ease;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5), inset 0 0 20px rgba(255, 255, 255, 0.3);
+            position: relative;
+            overflow: hidden;
         }
 
         button:hover {
-            background-color: #4158D0;
-            color: white;
-            transform: translateY(-2px);
-            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+            transform: scale(1.1);
+            background: radial-gradient(circle at center, #1fddff, #ff4b1f);
+            box-shadow: 0 15px 40px rgba(0, 0, 0, 0.7), inset 0 0 30px rgba(255, 255, 255, 0.5);
         }
-
+        button:active {
+            transform: scale(0.95);
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.5), inset 0 0 15px rgba(255, 255, 255, 0.4);
+        }
+        button span {
+            display: inline-block;
+            position: relative;
+            z-index: 1;
+        }
         button:disabled {
             background-color: gray;
             cursor: not-allowed;
         }
-
+        button::before {
+            content: "";
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: radial-gradient(circle at center, transparent, rgba(255, 255, 255, 0.3));
+            transform: rotate(45deg);
+            z-index: 0;
+            animation: pulse 2s infinite linear;
+            opacity: 0.7;
+        }
         #loading {
             display: none;
             font-size: 18px;
             color: white;
             margin-top: 20px;
         }
+        @keyframes pulse {
+            0% {
+                transform: rotate(45deg) scale(1);
+            }
+            100% {
+                transform: rotate(45deg) scale(1.5);
+            }
+        }
+
+        /* Headline Text */
+        h1 {
+            font-size: 36px;
+            color: #ffffff;
+            margin-bottom: 20px;
+            text-shadow: 0 5px 10px rgba(0, 0, 0, 0.5);
+        }
+
+        /* Subtitle Text */
+        p {
+            font-size: 16px;
+            color: #c0c0c0;
+            margin-bottom: 40px;
+            max-width: 600px;
+            line-height: 1.5;
+            text-shadow: 0 3px 5px rgba(0, 0, 0, 0.5);
+        }
     </style>
 </head>
 <body>
+    <h1>i.am.skyye</h1>
+    <p>Prepare to delve into an unfathomable realm of knowledge, guided by AI that bridges the gap between curiosity and omniscience.</p>
     <div class="input-container">
-        <button id="recordButton">🎤 Record Preferences</button>
+        <button id="recordButton">👁️ Seek solace in my cosmic counsel</button>
     </div>
 
     <div id="loading">Finding perfect events for you...</div>
@@ -112,6 +167,7 @@
         const loadingText = document.getElementById('loading');
         const qrCodeContainer = document.getElementById('qrCodeContainer');
 
+
         let isRecording = false;
 
         recordButton.addEventListener('click', async () => {
@@ -123,7 +179,7 @@
             if (!isRecording) {
                 // Start recording
                 isRecording = true;
-                recordButton.textContent = "🎙️ Recording...";
+                recordButton.textContent = "🧠 celestial thought process incoming";
                 recordButton.disabled = true;
 
                 try {
@@ -136,7 +192,7 @@
                     };
 
                     mediaRecorder.onstop = async () => {
-                        recordButton.textContent = "🎤 Record Preferences";
+                        recordButton.textContent = "👁️ From the celestial tapestry, to your ears";
                         isRecording = false;
                         recordButton.disabled = false;
 
