@@ -151,28 +151,32 @@
                 method: 'POST',
                 body: formData
             })
-                .then(response => response.json())
-                .then(data => {
-                    loadingText.style.display = 'none';
+            .then(response => response.json())
+            .then(data => {
+                loadingText.style.display = 'none';
 
-                    if (data.error) {
-                        alert(data.error);
+                if (data.error) {
+                    alert(data.error);
+                } else {
+                    // Play audio response
+                    const audio = new Audio(data.audio_url);
+                    audio.play();
+
+                    const eventDetails = data.events;
+                    if (eventDetails && eventDetails.length > 0) {
+                        eventDetails.forEach(event => {
+                            generateQRCode(event.title, event.date, event.url);
+                        });
                     } else {
-                        const eventDetails = data.events;
-                        if (eventDetails && eventDetails.length > 0) {
-                            eventDetails.forEach(event => {
-                                generateQRCode(event.title, event.date, event.url);
-                            });
-                        } else {
-                            alert("No valid event details found in recommendations.");
-                        }
+                        alert("No valid event details found in recommendations.");
                     }
-                })
-                .catch(error => {
-                    console.error('Error:', error);
-                    loadingText.style.display = 'none';
-                    alert('An error occurred while getting recommendations.');
-                });
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                loadingText.style.display = 'none';
+                alert('An error occurred while getting recommendations.');
+            });
         }
 
         function generateQRCode(eventTitle, eventDate, url) {
@@ -186,38 +190,38 @@
                 headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
                 body: formData
             })
-                .then(response => {
-                    if (!response.ok) throw new Error("Failed to generate QR Code");
-                    return response.blob();
-                })
-                .then(blob => {
-                    const qrItem = document.createElement('div');
-                    qrItem.className = 'qr-code-item';
+            .then(response => {
+                if (!response.ok) throw new Error("Failed to generate QR Code");
+                return response.blob();
+            })
+            .then(blob => {
+                const qrItem = document.createElement('div');
+                qrItem.className = 'qr-code-item';
 
-                    const titleElement = document.createElement('div');
-                    titleElement.className = 'qr-code-title';
-                    titleElement.innerText = eventTitle;
+                const titleElement = document.createElement('div');
+                titleElement.className = 'qr-code-title';
+                titleElement.innerText = eventTitle;
 
-                    const dateElement = document.createElement('div');
-                    dateElement.className = 'qr-code-date';
-                    dateElement.innerText = eventDate;
+                const dateElement = document.createElement('div');
+                dateElement.className = 'qr-code-date';
+                dateElement.innerText = eventDate;
 
-                    const img = document.createElement('img');
-                    img.className = 'qr-code-img';
-                    img.src = URL.createObjectURL(blob);
-                    img.alt = 'QR Code';
+                const img = document.createElement('img');
+                img.className = 'qr-code-img';
+                img.src = URL.createObjectURL(blob);
+                img.alt = 'QR Code';
 
-                    qrItem.appendChild(titleElement);
-                    qrItem.appendChild(dateElement);
-                    qrItem.appendChild(img);
+                qrItem.appendChild(titleElement);
+                qrItem.appendChild(dateElement);
+                qrItem.appendChild(img);
 
-                    qrCodeContainer.appendChild(qrItem);
-                    qrCodeContainer.style.display = 'block';
-                })
-                .catch(error => {
-                    console.error('Error generating QR Code:', error);
-                    alert('Failed to generate QR Code.');
-                });
+                qrCodeContainer.appendChild(qrItem);
+                qrCodeContainer.style.display = 'block';
+            })
+            .catch(error => {
+                console.error('Error generating QR Code:', error);
+                alert('Failed to generate QR Code.');
+            });
         }
     </script>
 </body>

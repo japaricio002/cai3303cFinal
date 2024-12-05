@@ -55,24 +55,35 @@ def get_recommendations():
         return jsonify({'error': 'No preferences provided'}), 400
     
     try:
+        # Get event recommendations
         recommendations = recommender.get_recommendations(preferences)
         events = [
             {
-                'title': rec['event'].get('Event Title', 'Untitled Event'),  # Use a "Title" field explicitly
+                'title': rec['event'].get('Event Title', 'Untitled Event'),
                 'date': rec['event'].get('Event Date', 'Date not specified'),
                 'url': rec['event'].get('URL')
             }
             for rec in recommendations if 'URL' in rec['event']
         ]
         
-        response_text = recommender.generate_recommendation_response(preferences)
+        # Generate dynamic text response
+        #response_text = recommender.generate_recommendation_response(preferences)
+        response_text = "Here are some events that you may find interesting"
+        # Create an audio file for the response
+        audio_filename = f"{uuid.uuid4()}.mp3"
+        tts = gTTS(text=response_text, lang='en')
+        audio_path = AUDIO_DIR / audio_filename
+        tts.save(audio_path)
         
+        # Return recommendations and audio file URL
         return jsonify({
             'recommendations': response_text,
-            'events': events
+            'events': events,
+            'audio_url': f"/audio/{audio_filename}"
         })
     except Exception as e:
         return jsonify({'error': str(e)}), 500
+
 
 @app.route('/get_qr_code', methods=['POST'])
 def get_qr_code():
